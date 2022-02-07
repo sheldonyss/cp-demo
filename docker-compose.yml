@@ -87,6 +87,7 @@ services:
       - ./scripts/security/keypair:/tmp/conf
       - ./scripts/helper:/tmp/helper
       - ./scripts/security:/etc/kafka/secrets
+      - ./prometheus:/opt/prometheus
     command: "bash -c 'if [ ! -f /etc/kafka/secrets/kafka.kafka1.keystore.jks ]; then echo \"ERROR: Did not find SSL certificates in /etc/kafka/secrets/ (did you remember to run ./scripts/start.sh instead of docker-compose up -d?)\" && exit 1 ; else /etc/confluent/docker/run ; fi'"
     ports:
       - 8091:8091
@@ -94,6 +95,7 @@ services:
       - 10091:10091
       - 11091:11091
       - 12091:12091
+      - 12346:12346
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2182
       KAFKA_ZOOKEEPER_SSL_CLIENT_ENABLE: 'true'
@@ -187,6 +189,7 @@ services:
       KAFKA_CONFLUENT_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka1.truststore.jks
       KAFKA_CONFLUENT_SSL_TRUSTSTORE_PASSWORD: confluent
       KAFKA_OPTS: -Djava.security.auth.login.config=/etc/kafka/secrets/broker_jaas.conf
+                  -javaagent:/opt/prometheus/jmx_prometheus_javaagent-0.15.0.jar=12346:/opt/prometheus/kafka_broker.yml
 
       # MDS
       KAFKA_CONFLUENT_METADATA_TOPIC_REPLICATION_FACTOR: 2
@@ -260,6 +263,7 @@ services:
       - ./scripts/security/keypair:/tmp/conf
       - ./scripts/helper:/tmp/helper
       - ./scripts/security:/etc/kafka/secrets
+      - ./prometheus:/opt/prometheus
     command: "bash -c 'if [ ! -f /etc/kafka/secrets/kafka.kafka2.keystore.jks ]; then echo \"ERROR: Did not find SSL certificates in /etc/kafka/secrets/ (did you remember to run ./scripts/start.sh instead of docker-compose up -d?)\" && exit 1 ; else /etc/confluent/docker/run ; fi'"
     ports:
       - 8092:8092
@@ -267,6 +271,7 @@ services:
       - 10092:10092
       - 11092:11092
       - 12092:12092
+      - 12345:12345
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2182
       KAFKA_ZOOKEEPER_SSL_CLIENT_ENABLE: 'true'
@@ -360,6 +365,7 @@ services:
       KAFKA_CONFLUENT_SSL_TRUSTSTORE_LOCATION: /etc/kafka/secrets/kafka.kafka2.truststore.jks
       KAFKA_CONFLUENT_SSL_TRUSTSTORE_PASSWORD: confluent
       KAFKA_OPTS: -Djava.security.auth.login.config=/etc/kafka/secrets/broker_jaas.conf
+                  -javaagent:/opt/prometheus/jmx_prometheus_javaagent-0.15.0.jar=12345:/opt/prometheus/kafka_broker.yml
 
       # MDS
       KAFKA_CONFLUENT_METADATA_TOPIC_REPLICATION_FACTOR: 2
@@ -960,3 +966,29 @@ services:
     environment:
       KAFKA_REPLICATION_FACTOR: 2
   
+  prometheus:
+    image: prom/prometheus:v2.33.0
+    restart: always
+    depends_on:
+      - kafka1
+      - kafka2
+    hostname: prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus
+    ports:
+      - 9090:9090
+
+  grafana:
+    image: grafana/grafana-oss:8.3.4
+    restart: always
+    depends_on:
+      - prometheus
+    hostname: grafana
+    container_name: grafana
+    volumes:
+      - ./grafana/provisioning/datasources/:/etc/grafana/provisioning/datasources/
+      - ./grafana/provisioning/dashboards/:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards/:/var/lib/grafana/dashboards/kafka
+    ports:
+      - 3000:3000

@@ -168,6 +168,14 @@ echo "Start the Kafka Streams application wikipedia-activity-monitor"
 docker-compose up -d streams-demo
 echo "..."
 
+echo "Start the prometheus"
+docker-compose up -d prometheus
+echo "..."
+
+echo "Start the grafana"
+docker-compose up -d grafana
+echo "..."
+
 #-------------------------------------------------------------------------------
 
 if [[ "$VIZ" == "true" ]]; then
